@@ -4,6 +4,8 @@ set -euo pipefail
 
 sock="${TMUX_SOCKET_NAME:-default}"
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# The install links this file onto PATH; lib/ is only in the checkout.
+root="$(cd "$(dirname "$(readlink "${BASH_SOURCE[0]}" || echo "${BASH_SOURCE[0]}")")/.." && pwd)"
 t() { tmux -L "$sock" ${TMUX_CONFIG:+-f "$TMUX_CONFIG"} "$@"; }
 
 if [ "$#" -gt 0 ]; then
@@ -16,6 +18,8 @@ if ! t has-session -t "=OPS" 2>/dev/null; then
   t new-session -d -s OPS
   t send-keys -t "=OPS:" "claude" Enter
 fi
+
+"$root/lib/update-check.sh" </dev/null >/dev/null 2>&1 &
 
 if [ ! -t 0 ] || [ ! -t 1 ]; then
   echo "tmux-start: not attaching; run: tmux attach -t '=OPS'"

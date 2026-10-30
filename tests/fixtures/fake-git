@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Stands in for git so a test picks the tag the checkout is on. No FAKE_GIT_TAG: no tag found.
+printf '%s\n' "$*" >> "$GIT_CALLS"
+[ -n "${FAKE_GIT_TAG:-}" ] || exit 128
+printf '%s\n' "$FAKE_GIT_TAG"

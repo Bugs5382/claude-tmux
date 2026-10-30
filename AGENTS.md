@@ -24,6 +24,7 @@ changing it:
 ## Layout
 
 - `bin/tmux-save`, `bin/tmux-restore`, `bin/tmux-start`, `bin/tmux-prefix`, `bin/tmux-stop`, `bin/tmux-restart` - the commands (no `.sh`: they are linked onto PATH)
+- `lib/update-check.sh` - the release check `tmux-start` runs in the background; not linked onto PATH, so `tmux-start` resolves its own symlink to find it
 - `hooks/tmux-claude-tag.sh` - SessionStart/SessionEnd hook that sets or clears `@claude_session`
 - `tmux.conf` - mouse, clipboard (pbcopy, wl-copy, xclip or OSC 52, chosen at load), base indexes,
   and the close hooks that run `tmux-save --on-close`; linked to `~/.tmux.conf`
@@ -74,4 +75,5 @@ Follow the logging rules in `CLAUDE.md`. In short:
   `$TMUX`, not `TMUX_SOCKET_NAME`, and logs to `save.log`. `tmux-restore` sets
   `@claude_tmux_restoring` so its placeholder window kills don't save a half-built server; anything
   new in restore that closes windows needs to stay inside that flag. `tests/close.test.sh` covers it.
+- Tests never reach GitHub: `tests/lib.sh` points `CLAUDE_TMUX_RELEASE_URL` at nothing, and `tests/update-check.test.sh` serves its releases from `file://` URLs with a fake `git`.
 - `window_layout` strings carry pane IDs, so tests compare layout geometry, not the raw string.
