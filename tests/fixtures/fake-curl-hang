@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# A network that never answers.
+sleep 3
+exit 28

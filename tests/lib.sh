@@ -7,6 +7,8 @@ export HOME
 export TMUX_SOCKET_NAME="claude-tmux-test-$$"
 export TMUX_STATE_DIR="$HOME/state"
 export TMUX_CONFIG=/dev/null
+# tmux-start checks for a release in the background; a test never reaches GitHub.
+export CLAUDE_TMUX_RELEASE_URL=file:///nonexistent
 # tmux leaves its socket file behind after kill-server; keep them out of /tmp/tmux-<uid>.
 TMUX_TMPDIR="$(mktemp -d /tmp/claude-tmux-test.XXXXXX)"
 export TMUX_TMPDIR

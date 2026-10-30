@@ -72,6 +72,12 @@ whether you are on SSH before they attach: yes sets the prefix to Ctrl-a, becaus
 way over SSH, and no sets it to Ctrl-b. Pressing Enter takes what the connection says. Press the
 prefix twice to send the key itself. To change it later, run `tmux-prefix ssh` or `tmux-prefix local`.
 
+`tmux-start` also checks once, in the background, whether GitHub has a newer release than your clone.
+If so, a message in tmux says which one; it installs nothing, and you update with `git pull` in the
+clone, then `bash install.sh`. Your version is the clone's nearest `v*` tag, so a clone with no tags
+(`git clone --depth 1`) stays quiet, and so does a failed check. Each check's result is in
+`update-check.log` in the state folder. Nothing else checks: not `tmux-restore`, `tmux-save` or the hook.
+
 Save now, list the snapshots, and restore:
 
 ```bash
@@ -192,6 +198,7 @@ next to `snapshots/` while a save runs; a lock whose pid is gone is cleared by t
 | `CLAUDE_TMUX_NO_LAUNCHCTL` | unset | when set, `install.sh` skips `launchctl` (macOS) |
 | `CLAUDE_TMUX_NO_SYSTEMCTL` | unset | when set, `install.sh` writes the units but skips `systemctl` (Linux) |
 | `CLAUDE_TMUX_OS` | `uname -s` | which install path to take, `Darwin` or `Linux`; the tests set it |
+| `CLAUDE_TMUX_RELEASE_URL` | the GitHub latest-release API for this repo | where `tmux-start` looks for a newer release; the tests set it |
 
 ## 🧹 Uninstall
 
