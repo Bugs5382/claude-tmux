@@ -1,0 +1,6 @@
+# local design notes - never committed
+plan/
+
+.DS_Store
+.idea/
+.vscode/

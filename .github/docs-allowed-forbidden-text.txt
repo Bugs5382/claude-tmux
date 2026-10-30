@@ -1,0 +1,5 @@
+# Patterns from .claude/hooks/forbidden-text.txt that this repo's Markdown docs
+# may use. Managed by the governance sync, which replaces this file.
+# A claude-code add-on has to name the product it plugs into; commits, PR text,
+# code and comments still get the full list.
+Claude Code

@@ -1,0 +1,20 @@
+version: '3'
+# go-task is the standard runner for every project (regardless of ecosystem).
+# lint and test run exactly what CI runs.
+tasks:
+  default:
+    cmds:
+      - task: lint
+      - task: test
+  lint:
+    desc: Run shellcheck over every script (the hub-owned .claude/ hooks excluded).
+    cmds:
+      - git ls-files -z -- '*.sh' ':!:.claude/**' | xargs -0 shellcheck
+  test:
+    desc: Run the test suite (every tests/*.test.sh, each in a temporary HOME).
+    cmds:
+      - bash tests/run.sh
+  install:
+    desc: Install the script into ~/.claude and print the settings snippet.
+    cmds:
+      - bash install.sh
