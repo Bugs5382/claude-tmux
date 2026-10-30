@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Start the OPS session if it isn't running, ask which prefix to use, then attach.
+# Start the OPS session with Claude in it if it isn't running, ask which prefix to use, then attach.
 set -euo pipefail
 
 sock="${TMUX_SOCKET_NAME:-default}"
@@ -11,7 +11,11 @@ if [ "$#" -gt 0 ]; then
   exit 64
 fi
 
-if ! t has-session -t "=OPS" 2>/dev/null; then t new-session -d -s OPS; fi
+# Typed into the shell, as tmux-restore does, so the pane survives Claude exiting.
+if ! t has-session -t "=OPS" 2>/dev/null; then
+  t new-session -d -s OPS
+  t send-keys -t "=OPS:" "claude" Enter
+fi
 
 if [ ! -t 0 ] || [ ! -t 1 ]; then
   echo "tmux-start: not attaching; run: tmux attach -t '=OPS'"
