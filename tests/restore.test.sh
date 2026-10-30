@@ -50,7 +50,7 @@ assert_eq "$(t display -p -t 'PROJECT DESIGN:two words.1' '#{pane_dead}')" 0 "sh
 # terminal nothing attaches
 t kill-session -t "=PROJECT DESIGN"
 t kill-window -t "=OPS:tmp"
-t split-window -t "=OPS:" -c "$HOME/b"
+wait_pane_path "$(t split-window -t "=OPS:" -c "$HOME/b" -P -F '#{pane_id}')" "$HOME/b"
 ops_before="$(t list-panes -s -t "=OPS" -F '#{window_name} #{pane_current_path}')"
 set +e; out="$("$BIN/tmux-restore" 2>&1)"; rc=$?; set -e
 assert_eq "$rc" 0 "restore into a running server exit"

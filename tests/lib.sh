@@ -19,3 +19,12 @@ stop_server() { t kill-server 2>/dev/null || true; }
 trap 'stop_server; rm -rf "$TMUX_TMPDIR"' EXIT
 fail() { printf 'FAIL: %s\n' "$*" >&2; exit 1; }
 assert_eq() { [ "$1" = "$2" ] || fail "$3: expected [$2] got [$1]"; }
+# On Linux a new pane reports an empty path until its process has started.
+wait_pane_path() {
+  local i
+  for (( i = 0; i < 50; i++ )); do
+    [ "$(t display -p -t "$1" '#{pane_current_path}')" = "$2" ] && return 0
+    sleep 0.1
+  done
+  fail "pane $1 never reached $2"
+}
