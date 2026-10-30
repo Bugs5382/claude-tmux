@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+# Snapshot every tmux session, window and pane (layout, folder, Claude session) to JSON.
+# --on-close: run by the tmux close hooks; saves the server that ran it and logs to save.log.
+set -euo pipefail
+
+sock="${TMUX_SOCKET_NAME:-default}"
+state="${TMUX_STATE_DIR:-$HOME/.local/state/tmux}"
+keep="${TMUX_SAVE_KEEP:-24}"
+dir="$state/snapshots"
+lock="$state/save.lock"
+pending="$state/save.pending"
+on_close=0
+case "${1:-}" in
+  --on-close) on_close=1 ;;
+  "") ;;
+  *) echo "usage: tmux-save [--on-close]" >&2; exit 64 ;;
+esac
+
+# A hook's run-shell output would pop up over the pane, so it goes to the log instead.
+if [ "$on_close" -eq 1 ]; then
+  mkdir -p "$state"
+  exec >>"$state/save.log" 2>&1
+  echo "tmux-save: $(date -u +%Y-%m-%dT%H:%M:%SZ) on-close save requested (pid $$)"
+fi
+
+# -u: launchd runs this with no locale, and tmux would then print tabs and UTF-8 as "_".
+# A hook runs inside the server with TMUX set to its socket, so save that server.
+if [ "$on_close" -eq 1 ] && [ -n "${TMUX:-}" ]; then
+  srv=(-S "${TMUX%%,*}")
+else
+  srv=(-L "$sock")
+fi
+t() { tmux -u "${srv[@]}" ${TMUX_CONFIG:+-f "$TMUX_CONFIG"} "$@"; }
+
+if ! command -v tmux >/dev/null 2>&1; then
+  echo "tmux-save: tmux is not on PATH ($PATH)" >&2
+  exit 127
+fi
+
+if ! t has-session 2>/dev/null; then
+  echo "tmux-save: no tmux server on ${srv[*]}, nothing to save"
+  exit 0
+fi
+
+mkdir -p "$dir"
+
+save_once() {
+  local now file tmp fmt snaps excess i f
+  if ! t has-session 2>/dev/null; then
+    echo "tmux-save: the tmux server on ${srv[*]} is gone, nothing to save"
+    return 0
+  fi
+  now="$(date -u +%Y%m%dT%H%M%SZ)"
+  file="$dir/$now.json"
+  tmp="$(mktemp "$dir/.$now.tmp.XXXXXX")"
+  fmt=$'#{session_name}\t#{window_index}\t#{window_name}\t#{window_layout}\t#{window_active}\t#{pane_index}\t#{pane_current_path}\t#{pane_active}\t#{@claude_session}'
+  if ! t list-panes -a -F "$fmt" | jq -R -s --arg at "$now" '
+    [split("\n")[] | select(length > 0) | split("\t")
+     | {s: .[0], wi: (.[1] | tonumber), wn: .[2], wl: .[3], wa: (.[4] == "1"),
+        pi: (.[5] | tonumber), cwd: .[6], pa: (.[7] == "1"),
+        cs: (if (.[8] // "") == "" then null else .[8] end)}]
+    | {saved_at: $at,
+       sessions: (group_by(.s) | map({name: .[0].s,
+         windows: (group_by(.wi) | map({index: .[0].wi, name: .[0].wn, layout: .[0].wl, active: .[0].wa,
+           panes: (sort_by(.pi) | map({index: .pi, cwd: .cwd, active: .pa, claude_session: .cs}))}))}))}' > "$tmp"; then
+    rm -f "$tmp"
+    echo "tmux-save: could not read the panes from ${srv[*]}; latest.json left as it was" >&2
+    return 1
+  fi
+
+  mv "$tmp" "$file"
+  ln -sfn "$file" "$dir/latest.json"
+
+  snaps=()
+  while IFS= read -r f; do snaps+=("$f"); done < <(find "$dir" -maxdepth 1 -name '*Z.json' | sort)
+  excess=$(( ${#snaps[@]} - keep ))
+  for (( i = 0; i < excess; i++ )); do rm -f "${snaps[$i]}"; done
+
+  echo "tmux-save: saved $(jq '[.sessions[].windows[].panes[]] | length' "$file") panes to $file"
+}
+
+# One save at a time. A save that finds another running leaves a pending mark and exits; the
+# running one saves again until no mark is left, so a burst of closes ends in one up-to-date save.
+take_lock() {
+  local holder
+  if mkdir "$lock" 2>/dev/null; then echo "$$" > "$lock/pid"; return 0; fi
+  holder="$(cat "$lock/pid" 2>/dev/null || true)"
+  if [ -n "$holder" ] && ! kill -0 "$holder" 2>/dev/null; then
+    echo "tmux-save: clearing a stale lock left by pid $holder"
+    rm -rf "$lock"
+    if mkdir "$lock" 2>/dev/null; then echo "$$" > "$lock/pid"; return 0; fi
+  fi
+  return 1
+}
+
+trap 'rm -rf "$lock"' EXIT
+while :; do
+  if ! take_lock; then
+    trap - EXIT
+    : > "$pending"
+    echo "tmux-save: another save is running (pid $(cat "$lock/pid" 2>/dev/null || echo '?')); it will save again"
+    exit 0
+  fi
+  rm -f "$pending"
+  save_once
+  while [ -e "$pending" ]; do
+    echo "tmux-save: more changes came in during the save, saving again"
+    rm -f "$pending"
+    save_once
+  done
+  rm -rf "$lock"
+  [ -e "$pending" ] || break
+done
+trap - EXIT

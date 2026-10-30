@@ -1,0 +1,10 @@
+[Unit]
+Description=Snapshot tmux sessions, windows and panes (claude-tmux)
+
+[Service]
+Type=oneshot
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=LANG=C.UTF-8
+ExecStart=%h/.local/bin/tmux-save
+StandardOutput=append:%h/.local/state/tmux/save.log
+StandardError=append:%h/.local/state/tmux/save.log

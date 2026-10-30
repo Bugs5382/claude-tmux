@@ -9,12 +9,16 @@ tasks:
   lint:
     desc: Run shellcheck over every script (the hub-owned .claude/ hooks excluded).
     cmds:
-      - git ls-files -z -- '*.sh' ':!:.claude/**' | xargs -0 shellcheck
+      - git ls-files -z -- '*.sh' 'bin/*' 'tests/fixtures/fake-*' ':!:.claude/**' | xargs -0 shellcheck
   test:
     desc: Run the test suite (every tests/*.test.sh, each in a temporary HOME).
     cmds:
       - bash tests/run.sh
+  e2e:
+    desc: Run the Linux end-to-end check in a systemd Ubuntu container (needs docker).
+    cmds:
+      - bash ci/linux-e2e-run.sh
   install:
-    desc: Install the script into ~/.claude and print the settings snippet.
+    desc: Link claude-tmux into place, start the hourly save (launchd or systemd) and print the settings snippet.
     cmds:
       - bash install.sh

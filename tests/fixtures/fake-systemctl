@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Stands in for systemctl: appends each call to $SYSTEMCTL_LOG. With SYSTEMCTL_DOWN set, there is
+# no user manager (a container, or a box without a login session), so every --user call fails.
+printf '%s\n' "$*" >> "$SYSTEMCTL_LOG"
+if [ -n "${SYSTEMCTL_DOWN:-}" ]; then
+  echo "Failed to connect to bus: No medium found" >&2
+  exit 1
+fi
+exit 0

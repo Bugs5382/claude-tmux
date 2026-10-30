@@ -5,36 +5,46 @@ hook-enforced rules). Keep this file current when the build, layout, or public A
 
 ## What this is
 
-tmux sessions for Claude on macOS and Linux: hourly snapshots and a restore that resumes each conversation.
+tmux sessions for Claude Code on macOS and Linux: hourly snapshots and a restore that resumes each Claude conversation.
 
-<!-- Fill in: what the project does, what it ships (library, service, action, CLI), and the one or
-two things an agent must understand before changing it. -->
+Two bash scripts, a Claude hook, a tmux.conf, and an hourly job: a launchd agent on macOS or a systemd user timer on Linux. `tmux-save` writes a
+JSON snapshot of every tmux session, window and pane; `tmux-restore` rebuilds them and types
+`claude --resume <id>` into panes the hook tagged with `@claude_session`. Two things to know before
+changing it:
 
-## Using claude-tmux
-
-<!-- If this project is consumed by others (a library/plugin/action), describe the contract a
-consumer must respect: the single entry point, the public surface, required options, and anything
-that must not be bypassed. Delete this section for a leaf application. -->
+- Tests must never reach the real tmux server or the real HOME. They use the private socket and
+  `TMUX_TMPDIR` from `tests/lib.sh` and the temporary HOME from `tests/run.sh`; `install.sh` runs in
+  tests only with `CLAUDE_TMUX_OS` set and `CLAUDE_TMUX_NO_LAUNCHCTL=1` or the fake `launchctl` and
+  `systemctl` from `tests/fixtures/` first on PATH.
+- launchd and systemd run `tmux-save` with a minimal environment (no locale, their own PATH from the
+  plist or unit), so `tmux-save` calls `tmux -u` and exits 127 when tmux is missing.
+- macOS behaviour must not change when Linux changes: the `pbcopy` bindings and the launchd path are
+  tested on every OS.
 
 ## Layout
 
-<!-- The directories that matter and what lives in each. Keep it short; point at the entry points. -->
-
-- `src/` - <what>
-- `<tests dir>/` - <what>
+- `bin/tmux-save`, `bin/tmux-restore` - the two commands (no `.sh`: they are linked onto PATH)
+- `hooks/tmux-claude-tag.sh` - SessionStart/SessionEnd hook that sets or clears `@claude_session`
+- `tmux.conf` - mouse, clipboard (pbcopy, wl-copy, xclip or OSC 52, chosen at load), base indexes,
+  and the close hooks that run `tmux-save --on-close`; linked to `~/.tmux.conf`
+- `launchd/com.bugs5382.tmux-save.plist` - hourly agent template (`__HOME__` is filled in on install)
+- `systemd/tmux-save.service`, `systemd/tmux-save.timer` - the hourly job on Linux (`%h` is the home folder)
+- `install.sh` - links everything into place, starts the hourly job for the OS, prints the settings snippet
+- `ci/` - the Linux end-to-end check: `linux.Dockerfile` (Ubuntu with systemd as PID 1),
+  `linux-e2e-run.sh` (builds, boots, runs) and `linux-e2e.sh` (the check, as a normal user)
+- `tests/` - `run.sh` runner, `lib.sh` helpers (private tmux server), one `*.test.sh` per area,
+  `fixtures/` (hook payloads, fake `claude`, `launchctl` and `systemctl`)
 
 ## Build, test, lint
 
 <!-- The exact commands. Pull these from package.json scripts (npm), the Taskfile (Go/Task), or
 pyproject (Python) so they stay accurate. -->
 
-- Build: `<command>`
-- Test: `<command>` (note any service/fixture the integration tests require)
-- Lint: `<command>`
-- Package checks (npm packages), after a build: `npm run check:pack` (contents and ceiling),
-  `npm run check:pack:growth` (growth against the last release), `npm run check:install`
-  (install the tarball, import ESM and CJS); see CLAUDE.md "npm package contents"
-- License headers / docs: `<command>`
+- Build: none
+- Test: `task test` (needs tmux and jq; CI installs tmux from apt)
+- Lint: `task lint` (shellcheck over `*.sh`, `bin/*` and `tests/fixtures/fake-*`)
+- Linux end-to-end: `task e2e` (needs docker; CI runs it too)
+- Install: `task install`
 
 ## Logging
 
@@ -56,4 +66,12 @@ Follow the logging rules in `CLAUDE.md`. In short:
   `.claude/hooks` (run `bash .claude/hooks/install.sh` once per clone).
 - Open every PR as a draft. CI skips drafts, so run the full checks locally, push once they pass,
   and mark the PR ready when the work is finished; see CLAUDE.md "CI and Actions minutes".
-- <project-specific conventions, non-obvious constraints, and traps an agent should know>
+- The layout differs from the claude-code hook baseline in CLAUDE.md: this repo ships commands, a
+  tmux.conf and a launchd agent alongside the hook, and `install.sh` links files instead of copying.
+- Script comments may not name the CLI product ("Claude Code"); the pre-commit hook allows it only
+  in Markdown.
+- The close hooks run `tmux-save --on-close` from inside the server. It takes the socket from
+  `$TMUX`, not `TMUX_SOCKET_NAME`, and logs to `save.log`. `tmux-restore` sets
+  `@claude_tmux_restoring` so its placeholder window kills don't save a half-built server; anything
+  new in restore that closes windows needs to stay inside that flag. `tests/close.test.sh` covers it.
+- `window_layout` strings carry pane IDs, so tests compare layout geometry, not the raw string.

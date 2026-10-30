@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+# Rebuild the tmux sessions from a tmux-save snapshot that aren't running, then attach;
+# Claude panes resume their conversation.
+set -euo pipefail
+
+sock="${TMUX_SOCKET_NAME:-default}"
+state="${TMUX_STATE_DIR:-$HOME/.local/state/tmux}"
+dir="$state/snapshots"
+t() { tmux -L "$sock" ${TMUX_CONFIG:+-f "$TMUX_CONFIG"} "$@"; }
+
+usage() {
+  cat <<'USAGE'
+usage: tmux-restore [--no-attach] [snapshot.json]
+       tmux-restore --list
+
+Rebuilds the saved sessions that aren't running (running ones are kept as they are), then attaches
+to OPS, or the snapshot's first session. --no-attach, or no terminal, only restores.
+USAGE
+}
+
+attach=1
+args=()
+for a in "$@"; do
+  case "$a" in
+    --no-attach) attach=0 ;;
+    -h|--help) usage; exit 0 ;;
+    *) args+=("$a") ;;
+  esac
+done
+set -- ${args[@]+"${args[@]}"}
+
+if [ "${1:-}" = "--list" ]; then
+  find "$dir" -maxdepth 1 -name '*Z.json' 2>/dev/null | sort -r | while IFS= read -r f; do
+    printf '%s  %s\n' "$(basename "$f" .json)" "$(jq -r '[.sessions[].name] | join(", ")' "$f" 2>/dev/null || echo '(unreadable)')"
+  done
+  exit 0
+fi
+
+snap="${1:-$dir/latest.json}"
+if [ ! -f "$snap" ] || ! jq -e '.sessions | type == "array"' "$snap" >/dev/null 2>&1; then
+  echo "tmux-restore: no usable snapshot at $snap (see tmux-restore --list)" >&2
+  exit 2
+fi
+
+folder() { if [ -d "$1" ]; then printf '%s' "$1"; elif [ -d "$HOME/Code" ]; then printf '%s' "$HOME/Code"; else printf '%s' "$HOME"; fi; }
+
+# One session; runs in a subshell with -e so a tmux error stops only this session.
+restore_session() {
+  local s="$1" name nwin w win idx wname layout npanes p last cs
+  local -a panes
+  name=$(jq -r ".sessions[$s].name" "$snap")
+  t new-session -d -s "$name" -n __restore__ -c "$HOME"
+  # Keeps the tmux close hooks from saving while sessions are half built.
+  t set -g @claude_tmux_restoring 1
+  t move-window -s "=$name:__restore__" -t "=$name:9999"
+  nwin=$(jq ".sessions[$s].windows | length" "$snap")
+  for (( w = 0; w < nwin; w++ )); do
+    win=".sessions[$s].windows[$w]"
+    idx=$(jq -r "$win.index" "$snap"); wname=$(jq -r "$win.name" "$snap"); layout=$(jq -r "$win.layout" "$snap")
+    last=$(t new-window -d -P -F '#{pane_id}' -t "=$name:$idx" -n "$wname" -c "$(folder "$(jq -r "$win.panes[0].cwd" "$snap")")")
+    panes=("$last")
+    npanes=$(jq "$win.panes | length" "$snap")
+    # Split the newest pane so panes keep snapshot order; tiled keeps room for the next split.
+    for (( p = 1; p < npanes; p++ )); do
+      last=$(t split-window -d -P -F '#{pane_id}' -t "$last" -c "$(folder "$(jq -r "$win.panes[$p].cwd" "$snap")")")
+      panes+=("$last")
+      t select-layout -t "=$name:$idx" tiled >/dev/null
+    done
+    t select-layout -t "=$name:$idx" "$layout" >/dev/null
+    for (( p = 0; p < npanes; p++ )); do
+      cs=$(jq -r "$win.panes[$p].claude_session // empty" "$snap")
+      if [ -n "$cs" ]; then t send-keys -t "${panes[$p]}" "claude --resume $cs" Enter; fi
+      if [ "$(jq -r "$win.panes[$p].active" "$snap")" = "true" ]; then t select-pane -t "${panes[$p]}"; fi
+    done
+    if [ "$(jq -r "$win.active" "$snap")" = "true" ]; then t select-window -t "=$name:$idx"; fi
+  done
+  t kill-window -t "=$name:9999"
+}
+
+nsess=$(jq '.sessions | length' "$snap")
+failed=()
+kept=0
+for (( s = 0; s < nsess; s++ )); do
+  name=$(jq -r ".sessions[$s].name" "$snap")
+  if t has-session -t "=$name" 2>/dev/null; then
+    echo "tmux-restore: kept $name (already running)"
+    kept=$(( kept + 1 ))
+    continue
+  fi
+  set +e
+  ( set -e; restore_session "$s" )
+  rc=$?
+  set -e
+  if [ "$rc" -ne 0 ]; then
+    echo "tmux-restore: could not fully restore session $name (see the tmux error above); carrying on" >&2
+    failed+=("$name")
+  fi
+done
+
+t set -gu @claude_tmux_restoring 2>/dev/null || true
+
+restored=$(( nsess - kept - ${#failed[@]} ))
+if [ "${#failed[@]}" -gt 0 ]; then
+  echo "tmux-restore: restored $restored and kept $kept of $nsess sessions from $snap; incomplete: $(printf '%s, ' "${failed[@]}" | sed 's/, $//')" >&2
+  exit 3
+fi
+echo "tmux-restore: restored $restored and kept $kept of $nsess sessions from $snap"
+
+if t has-session -t "=OPS" 2>/dev/null; then target=OPS; else target=$(jq -r '.sessions[0].name // empty' "$snap"); fi
+if [ -z "$target" ]; then exit 0; fi
+if [ "$attach" -eq 0 ] || [ ! -t 0 ] || [ ! -t 1 ]; then
+  echo "tmux-restore: not attaching; run: tmux attach -t '=$target'"
+  exit 0
+fi
+if [ -n "${TMUX:-}" ]; then
+  t switch-client -t "=$target"
+else
+  exec tmux -L "$sock" ${TMUX_CONFIG:+-f "$TMUX_CONFIG"} attach -t "=$target"
+fi
