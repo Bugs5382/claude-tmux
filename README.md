@@ -66,7 +66,8 @@ Terminal opens a plain shell; tmux only starts when you start it:
 tmux-start
 ```
 
-`tmux-start` creates `OPS` if it isn't running and attaches to it. It and `tmux-restore` both ask
+`tmux-start` creates `OPS` if it isn't running, starts Claude in it, and attaches to it. A running
+`OPS` is left as it is. It and `tmux-restore` both ask
 whether you are on SSH before they attach: yes sets the prefix to Ctrl-a, because Ctrl-b gets in the
 way over SSH, and no sets it to Ctrl-b. Pressing Enter takes what the connection says. Press the
 prefix twice to send the key itself. To change it later, run `tmux-prefix ssh` or `tmux-prefix local`.
