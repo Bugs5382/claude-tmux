@@ -93,7 +93,20 @@ Then it takes you to `OPS`, or to the snapshot's first session when there is no 
 it attaches, and inside tmux it switches your client. With `--no-attach`, or when stdin or stdout is
 not a terminal (a pipe, launchd, the tests), it only restores and prints the `tmux attach` command.
 
-Exit codes:
+Stop everything, or stop it and bring it straight back with each Claude pane resumed:
+
+```bash
+tmux-stop
+tmux-restart
+```
+
+Use these instead of closing windows by hand, because closing sticks. `tmux-stop` saves once, turns
+the close hooks off and stops the server, so `latest.json` holds every session and `tmux-restore`
+brings them all back. Run `tmux-restart [--no-attach]` from a terminal outside tmux: inside tmux it
+would die with the server, so it exits 64 and tells you. Panes keep only their Claude conversation;
+anything else running in a pane, such as a dev server, stops and comes back as a plain shell.
+
+Exit codes for `tmux-restore`:
 
 | Code | Meaning |
 |---|---|
@@ -181,7 +194,7 @@ On macOS:
 ```bash
 launchctl bootout gui/$(id -u)/com.bugs5382.tmux-save
 rm ~/Library/LaunchAgents/com.bugs5382.tmux-save.plist
-rm ~/.tmux.conf ~/.local/bin/tmux-save ~/.local/bin/tmux-restore ~/.claude/hooks/tmux-claude-tag.sh
+rm ~/.tmux.conf ~/.local/bin/tmux-save ~/.local/bin/tmux-restore ~/.local/bin/tmux-stop ~/.local/bin/tmux-restart ~/.claude/hooks/tmux-claude-tag.sh
 ```
 
 On Linux:
@@ -190,7 +203,7 @@ On Linux:
 systemctl --user disable --now tmux-save.timer
 rm ~/.config/systemd/user/tmux-save.service ~/.config/systemd/user/tmux-save.timer
 systemctl --user daemon-reload
-rm ~/.tmux.conf ~/.local/bin/tmux-save ~/.local/bin/tmux-restore ~/.claude/hooks/tmux-claude-tag.sh
+rm ~/.tmux.conf ~/.local/bin/tmux-save ~/.local/bin/tmux-restore ~/.local/bin/tmux-stop ~/.local/bin/tmux-restart ~/.claude/hooks/tmux-claude-tag.sh
 ```
 
 Then remove the two hook entries from `~/.claude/settings.json`. Snapshots stay in

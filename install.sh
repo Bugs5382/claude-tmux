@@ -25,6 +25,8 @@ link() {
 link "$ROOT/tmux.conf" "$HOME/.tmux.conf"
 link "$ROOT/bin/tmux-save" "$HOME/.local/bin/tmux-save"
 link "$ROOT/bin/tmux-restore" "$HOME/.local/bin/tmux-restore"
+link "$ROOT/bin/tmux-stop" "$HOME/.local/bin/tmux-stop"
+link "$ROOT/bin/tmux-restart" "$HOME/.local/bin/tmux-restart"
 link "$ROOT/hooks/tmux-claude-tag.sh" "$HOME/.claude/hooks/tmux-claude-tag.sh"
 
 install_launchd() {
@@ -70,7 +72,7 @@ rc="~/.zshrc"
 [ "$os" = Darwin ] || rc="~/.$(basename "${SHELL:-bash}")rc"
 case ":$PATH:" in
   *":$HOME/.local/bin:"*) ;;
-  *) echo "note: add this to $rc so tmux-save and tmux-restore are on PATH:"
+  *) echo "note: add this to $rc so the tmux commands are on PATH:"
      echo "  export PATH=\"\$HOME/.local/bin:\$PATH\"" ;;
 esac
 
