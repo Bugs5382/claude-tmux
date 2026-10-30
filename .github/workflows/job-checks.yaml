@@ -1,14 +1,14 @@
 name: Checks
-# The repo's own checks, as steps of one job: shellcheck over every script, then
-# the plain-bash test suite. Both take seconds, and GitHub bills every job for at
-# least a full minute, so they share one.
+# The repo's own checks, as steps of one job: shellcheck over every script, the
+# plain-bash test suite, then the Linux end-to-end check. GitHub bills every job
+# for at least a full minute, so they share one.
 #
 # Pull requests only, and not while the PR is a draft. There is no push trigger:
 # the PR run already checked the tree being merged.
 #
 # shellcheck is the pinned release binary, checked against the SHA-256 GitHub
 # records for the release asset, so the version never drifts with the runner
-# image. jq ships on ubuntu-latest.
+# image. jq ships on ubuntu-latest; tmux does not, so it comes from apt.
 on:
   pull_request:
     branches: [main]
@@ -44,9 +44,24 @@ jobs:
           tar -xJf "$RUNNER_TEMP/$tarball" -C "$RUNNER_TEMP" "shellcheck-${SHELLCHECK_VERSION}/shellcheck"
           mv "$RUNNER_TEMP/shellcheck-${SHELLCHECK_VERSION}/shellcheck" "$bin/"
           echo "$bin" >> "$GITHUB_PATH"
+      - name: 🪟 Install tmux
+        # The tests drive a private tmux server; the runner image has no tmux.
+        # The package comes from the runner's signed Ubuntu archive.
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends tmux
+          tmux -V
       - name: 🧹 Shellcheck
         # The governance hooks under .claude/ are owned by the hub and linted there.
-        run: git ls-files -z -- '*.sh' ':!:.claude/**' | xargs -0 -r shellcheck
+        run: git ls-files -z -- '*.sh' 'bin/*' 'tests/fixtures/fake-*' ':!:.claude/**' | xargs -0 -r shellcheck
       - name: 🧪 Tests
         if: ${{ !cancelled() }}
         run: bash tests/run.sh
+      - name: 🐧 Linux end-to-end
+        # Boots a clean Ubuntu container with systemd as PID 1 (ci/linux.Dockerfile,
+        # base pinned by digest) and runs ci/linux-e2e.sh in it as a normal user:
+        # install, the real tmux-save timer and service, a closed window, a killed
+        # server and a restore that resumes a Claude pane.
+        if: ${{ !cancelled() }}
+        run: bash ci/linux-e2e-run.sh

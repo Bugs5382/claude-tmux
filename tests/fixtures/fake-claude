@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Records how it was called (and from which folder), then exits non-zero like a failed resume would.
+printf '%s\n' "$*" >> "$CLAUDE_CALLS"
+if [ -n "${CLAUDE_CWDS:-}" ]; then printf '%s %s\n' "$PWD" "$*" >> "$CLAUDE_CWDS"; fi
+exit 3
