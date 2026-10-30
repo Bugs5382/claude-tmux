@@ -13,7 +13,7 @@ export PATH="$BIN:$HOME/bin:$PATH" CLAUDE_CALLS="$HOME/calls.txt"
 # nothing running is not an error
 "$BIN/tmux-stop" | grep -q 'not running' || fail "stop with no server"
 
-# The server runs the real close hooks: a stop must not let them shrink the snapshot.
+# The server runs the real close hooks: a stop must not shrink the snapshot.
 tmux -L "$TMUX_SOCKET_NAME" -f /dev/null new-session -d -s OPS -n main
 t source-file "$ROOT/tmux.conf" || fail "tmux.conf has errors"
 t new-window -d -t OPS -n side

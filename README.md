@@ -63,8 +63,13 @@ last save.
 Terminal opens a plain shell; tmux only starts when you start it:
 
 ```bash
-tmux new -s OPS
+tmux-start
 ```
+
+`tmux-start` creates `OPS` if it isn't running and attaches to it. It and `tmux-restore` both ask
+whether you are on SSH before they attach: yes sets the prefix to Ctrl-a, because Ctrl-b gets in the
+way over SSH, and no sets it to Ctrl-b. Pressing Enter takes what the connection says. Press the
+prefix twice to send the key itself. To change it later, run `tmux-prefix ssh` or `tmux-prefix local`.
 
 Save now, list the snapshots, and restore:
 
@@ -100,8 +105,8 @@ tmux-stop
 tmux-restart
 ```
 
-Use these instead of closing windows by hand, because closing sticks. `tmux-stop` saves once, turns
-the close hooks off and stops the server, so `latest.json` holds every session and `tmux-restore`
+Use these instead of closing windows by hand, because closing sticks. `tmux-stop` saves once,
+then stops the server, so `latest.json` holds every session and `tmux-restore`
 brings them all back. Run `tmux-restart [--no-attach]` from a terminal outside tmux: inside tmux it
 would die with the server, so it exits 64 and tells you. Panes keep only their Claude conversation;
 anything else running in a pane, such as a dev server, stops and comes back as a plain shell.
@@ -194,7 +199,7 @@ On macOS:
 ```bash
 launchctl bootout gui/$(id -u)/com.bugs5382.tmux-save
 rm ~/Library/LaunchAgents/com.bugs5382.tmux-save.plist
-rm ~/.tmux.conf ~/.local/bin/tmux-save ~/.local/bin/tmux-restore ~/.local/bin/tmux-stop ~/.local/bin/tmux-restart ~/.claude/hooks/tmux-claude-tag.sh
+rm ~/.tmux.conf ~/.local/bin/tmux-save ~/.local/bin/tmux-restore ~/.local/bin/tmux-start ~/.local/bin/tmux-prefix ~/.local/bin/tmux-stop ~/.local/bin/tmux-restart ~/.claude/hooks/tmux-claude-tag.sh
 ```
 
 On Linux:
@@ -203,7 +208,7 @@ On Linux:
 systemctl --user disable --now tmux-save.timer
 rm ~/.config/systemd/user/tmux-save.service ~/.config/systemd/user/tmux-save.timer
 systemctl --user daemon-reload
-rm ~/.tmux.conf ~/.local/bin/tmux-save ~/.local/bin/tmux-restore ~/.local/bin/tmux-stop ~/.local/bin/tmux-restart ~/.claude/hooks/tmux-claude-tag.sh
+rm ~/.tmux.conf ~/.local/bin/tmux-save ~/.local/bin/tmux-restore ~/.local/bin/tmux-start ~/.local/bin/tmux-prefix ~/.local/bin/tmux-stop ~/.local/bin/tmux-restart ~/.claude/hooks/tmux-claude-tag.sh
 ```
 
 Then remove the two hook entries from `~/.claude/settings.json`. Snapshots stay in

@@ -18,8 +18,6 @@ if ! t has-session 2>/dev/null; then
   exit 0
 fi
 
-# The close hooks would save a shrinking server over the snapshot taken here.
-t set -g @claude_tmux_restoring 1
 "$here/tmux-save"
 # tmux-save hands over to a save already running; let it finish before its panes go away.
 for (( i = 0; i < 50; i++ )); do [ -e "$state/save.lock" ] || break; sleep 0.1; done

@@ -25,6 +25,8 @@ link() {
 link "$ROOT/tmux.conf" "$HOME/.tmux.conf"
 link "$ROOT/bin/tmux-save" "$HOME/.local/bin/tmux-save"
 link "$ROOT/bin/tmux-restore" "$HOME/.local/bin/tmux-restore"
+link "$ROOT/bin/tmux-start" "$HOME/.local/bin/tmux-start"
+link "$ROOT/bin/tmux-prefix" "$HOME/.local/bin/tmux-prefix"
 link "$ROOT/bin/tmux-stop" "$HOME/.local/bin/tmux-stop"
 link "$ROOT/bin/tmux-restart" "$HOME/.local/bin/tmux-restart"
 link "$ROOT/hooks/tmux-claude-tag.sh" "$HOME/.claude/hooks/tmux-claude-tag.sh"
