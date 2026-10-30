@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# Set the prefix on the running server: Ctrl-a over SSH, where Ctrl-b gets in the way, else Ctrl-b.
+set -euo pipefail
+
+sock="${TMUX_SOCKET_NAME:-default}"
+t() { tmux -L "$sock" ${TMUX_CONFIG:+-f "$TMUX_CONFIG"} "$@"; }
+
+case "${1:-ask}" in
+  ssh|local) mode="${1:-}" ;;
+  ask)
+    if [ -n "${SSH_CONNECTION:-}${SSH_TTY:-}" ]; then
+      mode=ssh; hint="Y/n"
+    else
+      mode=local; hint="y/N"
+    fi
+    reply=""
+    printf 'Are you on SSH? Ctrl-a is the tmux prefix on SSH, Ctrl-b otherwise. [%s] ' "$hint"
+    read -r reply || true
+    case "$reply" in
+      [yY]*) mode=ssh ;;
+      [nN]*) mode=local ;;
+    esac
+    ;;
+  -h|--help) echo "usage: tmux-prefix [ssh|local]"; exit 0 ;;
+  *) echo "usage: tmux-prefix [ssh|local]" >&2; exit 64 ;;
+esac
+
+if ! t has-session 2>/dev/null; then
+  echo "tmux-prefix: tmux is not running" >&2
+  exit 1
+fi
+
+if [ "$mode" = ssh ]; then new=C-a; old=C-b; else new=C-b; old=C-a; fi
+t set -g prefix "$new"
+t unbind-key "$old"
+# Pressing the prefix twice sends the key itself, so Ctrl-a still reaches the shell.
+t bind-key "$new" send-prefix
+echo "tmux-prefix: prefix is now ${new/C-/Ctrl-}"

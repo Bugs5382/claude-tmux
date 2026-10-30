@@ -6,6 +6,7 @@ set -euo pipefail
 sock="${TMUX_SOCKET_NAME:-default}"
 state="${TMUX_STATE_DIR:-$HOME/.local/state/tmux}"
 dir="$state/snapshots"
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 t() { tmux -L "$sock" ${TMUX_CONFIG:+-f "$TMUX_CONFIG"} "$@"; }
 
 usage() {
@@ -14,7 +15,8 @@ usage: tmux-restore [--no-attach] [snapshot.json]
        tmux-restore --list
 
 Rebuilds the saved sessions that aren't running (running ones are kept as they are), then attaches
-to OPS, or the snapshot's first session. --no-attach, or no terminal, only restores.
+to OPS, or the snapshot's first session, asking first whether you are on SSH to set the prefix.
+--no-attach, or no terminal, only restores.
 USAGE
 }
 
@@ -112,6 +114,7 @@ if [ "$attach" -eq 0 ] || [ ! -t 0 ] || [ ! -t 1 ]; then
   echo "tmux-restore: not attaching; run: tmux attach -t '=$target'"
   exit 0
 fi
+"$here/tmux-prefix"
 if [ -n "${TMUX:-}" ]; then
   t switch-client -t "=$target"
 else

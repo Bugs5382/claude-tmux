@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# tmux-stop, then tmux-restore: every session comes back and each Claude pane resumes.
+set -euo pipefail
+
+sock="${TMUX_SOCKET_NAME:-default}"
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+t() { tmux -L "$sock" ${TMUX_CONFIG:+-f "$TMUX_CONFIG"} "$@"; }
+
+for a in "$@"; do
+  case "$a" in
+    --no-attach) ;;
+    -h|--help) echo "usage: tmux-restart [--no-attach]"; exit 0 ;;
+    *) echo "usage: tmux-restart [--no-attach]" >&2; exit 64 ;;
+  esac
+done
+
+# The server takes this script down with it, so the restore would never run.
+if [ -n "${TMUX:-}" ]; then
+  echo "tmux-restart: run this outside tmux (detach first); inside it would stop before restoring" >&2
+  exit 64
+fi
+
+"$here/tmux-stop"
+for (( i = 0; i < 50; i++ )); do t has-session 2>/dev/null || break; sleep 0.1; done
+exec "$here/tmux-restore" "$@"

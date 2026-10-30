@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Save every session, then stop the tmux server, so tmux-restore brings all of them back.
+set -euo pipefail
+
+sock="${TMUX_SOCKET_NAME:-default}"
+state="${TMUX_STATE_DIR:-$HOME/.local/state/tmux}"
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+t() { tmux -L "$sock" ${TMUX_CONFIG:+-f "$TMUX_CONFIG"} "$@"; }
+
+case "${1:-}" in
+  "") ;;
+  -h|--help) echo "usage: tmux-stop"; exit 0 ;;
+  *) echo "usage: tmux-stop" >&2; exit 64 ;;
+esac
+
+if ! t has-session 2>/dev/null; then
+  echo "tmux-stop: tmux is not running, nothing to stop"
+  exit 0
+fi
+
+"$here/tmux-save"
+# tmux-save hands over to a save already running; let it finish before its panes go away.
+for (( i = 0; i < 50; i++ )); do [ -e "$state/save.lock" ] || break; sleep 0.1; done
+
+# Printed first: run inside tmux, this script dies with the server.
+echo "tmux-stop: stopping tmux; tmux-restore brings it back"
+t kill-server

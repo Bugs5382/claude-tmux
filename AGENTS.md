@@ -23,7 +23,7 @@ changing it:
 
 ## Layout
 
-- `bin/tmux-save`, `bin/tmux-restore` - the two commands (no `.sh`: they are linked onto PATH)
+- `bin/tmux-save`, `bin/tmux-restore`, `bin/tmux-start`, `bin/tmux-prefix`, `bin/tmux-stop`, `bin/tmux-restart` - the commands (no `.sh`: they are linked onto PATH)
 - `hooks/tmux-claude-tag.sh` - SessionStart/SessionEnd hook that sets or clears `@claude_session`
 - `tmux.conf` - mouse, clipboard (pbcopy, wl-copy, xclip or OSC 52, chosen at load), base indexes,
   and the close hooks that run `tmux-save --on-close`; linked to `~/.tmux.conf`

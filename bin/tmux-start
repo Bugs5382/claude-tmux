@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Start the OPS session if it isn't running, ask which prefix to use, then attach.
+set -euo pipefail
+
+sock="${TMUX_SOCKET_NAME:-default}"
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+t() { tmux -L "$sock" ${TMUX_CONFIG:+-f "$TMUX_CONFIG"} "$@"; }
+
+if [ "$#" -gt 0 ]; then
+  echo "usage: tmux-start" >&2
+  exit 64
+fi
+
+if ! t has-session -t "=OPS" 2>/dev/null; then t new-session -d -s OPS; fi
+
+if [ ! -t 0 ] || [ ! -t 1 ]; then
+  echo "tmux-start: not attaching; run: tmux attach -t '=OPS'"
+  exit 0
+fi
+"$here/tmux-prefix"
+if [ -n "${TMUX:-}" ]; then
+  t switch-client -t "=OPS"
+else
+  exec tmux -L "$sock" ${TMUX_CONFIG:+-f "$TMUX_CONFIG"} attach -t "=OPS"
+fi

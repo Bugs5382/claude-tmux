@@ -7,7 +7,7 @@ export CLAUDE_TMUX_OS=Darwin
 export CLAUDE_TMUX_NO_LAUNCHCTL=1
 printf 'my own config\n' > "$HOME/.tmux.conf"
 out="$(bash "$ROOT/install.sh")"
-for l in .tmux.conf .local/bin/tmux-save .local/bin/tmux-restore .claude/hooks/tmux-claude-tag.sh; do
+for l in .tmux.conf .local/bin/tmux-save .local/bin/tmux-restore .local/bin/tmux-start .local/bin/tmux-prefix .local/bin/tmux-stop .local/bin/tmux-restart .claude/hooks/tmux-claude-tag.sh; do
   [ -L "$HOME/$l" ] || { echo "FAIL: $l not linked" >&2; exit 1; }
 done
 # an existing real file is moved aside, never overwritten
